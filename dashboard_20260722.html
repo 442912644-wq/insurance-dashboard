@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投保数据看板 - 2026-07-22</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #f5f7fa;
+            --bg-gradient: linear-gradient(135deg, #f0f2f5 0%, #f8f9fb 50%, #eef1f5 100%);
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --card-bg-hover: rgba(248, 250, 252, 0.98);
+            --card-border: rgba(200, 210, 225, 0.6);
+            --card-border-hover: rgba(59, 130, 246, 0.35);
+            --text-primary: #1a1f2e;
+            --text-secondary: #6b7280;
+            --text-tertiary: #9ca3af;
+            --accent-blue: #3b82f6;
+            --accent-blue-light: #2563eb;
+            --accent-green: #10b981;
+            --accent-green-light: #059669;
+            --accent-orange: #f59e0b;
+            --accent-orange-light: #d97706;
+            --accent-purple: #8b5cf6;
+            --accent-purple-light: #7c3aed;
+            --accent-red: #ef4444;
+            --accent-red-light: #dc2626;
+            --accent-cyan: #06b6d4;
+            --accent-pink: #ec4899;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 20px rgba(0,0,0,0.07);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.09);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                         "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container { max-width: 1400px; margin:0 auto; padding: 24px 28px; }
+
+        /* ---- Header ---- */
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 24px 32px;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--card-border);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+            flex-wrap: wrap; gap: 16px;
+        }
+        .header-left { display:flex; align-items:center; gap:16px; }
+        .header-icon {
+            width: 48px; height: 48px; border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+        }
+        .header-icon svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 2; }
+        .header-left h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.5px; }
+        .header-left .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+        .header-right { display:flex; gap:12px; align-items:center; }
+        .update-badge {
+            background: rgba(16,185,129,0.12); color: var(--accent-green-light);
+            font-size: 12px; font-weight: 500;
+            padding: 6px 14px; border-radius: 20px;
+            display: flex; align-items: center; gap: 8px;
+            border: 1px solid rgba(16,185,129,0.25);
+        }
+        .update-badge::before {
+            content:""; width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent-green-light); animation: pulse 2s infinite;
+            box-shadow: 0 0 8px var(--accent-green-light);
+        }
+        @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.85)} }
+
+        /* ---- Period Tabs ---- */
+        .tabs {
+            display: flex; gap: 4px;
+            background: var(--card-bg);
+            border-radius: var(--radius-md);
+            padding: 5px; margin-bottom: 24px;
+            border: 1px solid var(--card-border);
+        }
+        .tab-btn {
+            padding: 10px 28px; border: none; border-radius: var(--radius-sm);
+            cursor: pointer; font-size: 14px; font-weight: 600;
+            background: transparent; color: var(--text-secondary);
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            position: relative;
+        }
+        .tab-btn:hover { color: var(--text-primary); background: rgba(59,130,246,0.06); }
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-light));
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(59,130,246,0.35);
+        }
+
+        /* ---- KPI Cards ---- */
+        .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 24px; }
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 22px 24px;
+            position: relative; overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: var(--shadow-sm);
+        }
+        .kpi-card:hover {
+            border-color: var(--card-border-hover);
+            background: var(--card-bg-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .kpi-card .kpi-icon {
+            position: absolute; top: 18px; right: 18px;
+            width: 40px; height: 40px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.25s;
+        }
+        .kpi-card:hover .kpi-icon { transform: scale(1.1); }
+        .kpi-card .kpi-icon svg { width: 22px; height: 22px; fill: none; stroke-width: 2; }
+        .kpi-card.orders .kpi-icon { background: rgba(59,130,246,0.15); }
+        .kpi-card.orders .kpi-icon svg { stroke: var(--accent-blue-light); }
+        .kpi-card.premium .kpi-icon { background: rgba(16,185,129,0.15); }
+        .kpi-card.premium .kpi-icon svg { stroke: var(--accent-green-light); }
+        .kpi-card.avg .kpi-icon { background: rgba(245,158,11,0.15); }
+        .kpi-card.avg .kpi-icon svg { stroke: var(--accent-orange-light); }
+        .kpi-card.refund .kpi-icon { background: rgba(239,68,68,0.15); }
+        .kpi-card.refund .kpi-icon svg { stroke: var(--accent-red-light); }
+
+        .kpi-card::before {
+            content:""; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+            opacity: 0.8;
+        }
+        .kpi-card.orders::before { background: linear-gradient(90deg, var(--accent-blue), transparent); }
+        .kpi-card.premium::before { background: linear-gradient(90deg, var(--accent-green), transparent); }
+        .kpi-card.avg::before { background: linear-gradient(90deg, var(--accent-orange), transparent); }
+        .kpi-card.refund::before { background: linear-gradient(90deg, var(--accent-red), transparent); }
+
+        .kpi-label {
+            font-size: 12px; color: var(--text-tertiary);
+            text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .kpi-value {
+            font-size: 36px; font-weight: 800; letter-spacing: -1px;
+            line-height: 1.1;
+            color: var(--text-primary);
+        }
+        .kpi-change {
+            font-size: 12px; margin-top: 10px;
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 16px; font-weight: 600;
+        }
+        .kpi-change.up { color: #dc2626; background: rgba(220,38,38,0.08); }
+        .kpi-change.down { color: #059669; background: rgba(5,150,105,0.08); }
+        .kpi-change.flat { color: var(--text-tertiary); background: rgba(0,0,0,0.03); }
+        .kpi-change .arrow { font-size: 14px; }
+
+        /* ---- Chart Grid ---- */
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+        .chart-row.full { grid-template-columns: 1fr; }
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 22px 24px;
+            position: relative;
+            transition: border-color 0.25s;
+            box-shadow: var(--shadow-sm);
+        }
+        .chart-card:hover { border-color: var(--card-border-hover); }
+        .chart-card .chart-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+        }
+        .chart-card .chart-header .chart-icon {
+            width: 28px; height: 28px; border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .chart-card .chart-header .chart-icon svg { width: 16px; height: 16px; fill: none; stroke-width: 2; }
+        .chart-card h3 {
+            font-size: 15px; font-weight: 600; color: var(--text-primary);
+        }
+        .chart-card .chart-wrap { position: relative; height: 300px; }
+        .chart-card.full-height .chart-wrap { height: 360px; }
+
+        /* ---- Data Table ---- */
+        .table-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 22px 24px; margin-bottom: 18px;
+            overflow-x: auto;
+            box-shadow: var(--shadow-sm);
+        }
+        .table-card .table-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+        }
+        .table-card .table-header .table-icon {
+            width: 28px; height: 28px; border-radius: 7px;
+            background: rgba(139,92,246,0.15);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .table-card .table-header .table-icon svg { width: 16px; height: 16px; fill: none; stroke: var(--accent-purple-light); stroke-width: 2; }
+        .table-card h3 { font-size: 15px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th {
+            text-align: left; padding: 12px 16px;
+            color: var(--text-tertiary); font-weight: 600;
+            border-bottom: 1px solid var(--card-border);
+            white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12px;
+        }
+        td {
+            padding: 12px 16px; border-bottom: 1px solid rgba(200,210,225,0.4);
+            color: var(--text-primary); font-weight: 500;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(59,130,246,0.03); }
+        .rank-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; border-radius: 50%;
+            font-size: 11px; font-weight: 700;
+        }
+        .rank-1 { background: rgba(255,215,0,0.2); color: #ffd700; }
+        .rank-2 { background: rgba(192,192,192,0.2); color: #d0d0d0; }
+        .rank-3 { background: rgba(205,127,50,0.2); color: #cd7f32; }
+
+        /* ---- Insights ---- */
+        .insight-item {
+            padding: 12px 16px; margin-bottom: 8px;
+            background: rgba(59,130,246,0.04);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 14px; line-height: 1.6;
+            transition: background 0.2s;
+        }
+        .insight-item:hover { background: rgba(59,130,246,0.08); }
+        .insight-num {
+            color: var(--accent-blue-light); font-weight: 800; margin-right: 10px;
+            font-size: 13px;
+        }
+
+        /* ---- Footer ---- */
+        .footer {
+            text-align: center; padding: 24px;
+            color: var(--text-tertiary); font-size: 12px; margin-top: 12px;
+        }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 1024px) {
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .chart-row { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .kpi-row { grid-template-columns: 1fr; }
+            .header { flex-direction: column; align-items: flex-start; }
+            .tabs { overflow-x: auto; }
+            .tab-btn { padding: 8px 18px; font-size: 13px; }
+            .container { padding: 16px; }
+            .kpi-value { font-size: 28px; }
+        }
+
+        /* ---- Print ---- */
+        @media print {
+            body { background: #fff; color: #000; }
+            .kpi-card, .chart-card, .table-card, .header {
+                background: #fff; border: 1px solid #ddd; backdrop-filter: none;
+            }
+            .tabs { display: none; }
+            .kpi-value { -webkit-text-fill-color: #000; }
+        }
+
+        /* ---- Scrollbar ---- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(180,190,205,0.5); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(180,190,205,0.7); }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ====== Header ====== -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-icon">
+                <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg>
+            </div>
+            <div>
+                <h1>投保数据看板</h1>
+                <div class="subtitle">报告日期: 2026-07-22 | 时段对比: 昨日 / 本周 / 本月 | 环比: 前日 / 上周 / 上月</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="update-badge">每日 09:00 自动更新</div>
+        </div>
+    </div>
+
+    <!-- ====== Period Tabs ====== -->
+    <div class="tabs">
+        <button class="tab-btn active" data-period="yesterday">昨日</button>
+        <button class="tab-btn" data-period="week">本周</button>
+        <button class="tab-btn" data-period="month">本月</button>
+    </div>
+
+    <!-- ====== KPI Cards ====== -->
+    <div class="kpi-row">
+        <div class="kpi-card orders">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            </div>
+            <div class="kpi-label">投保保单数</div>
+            <div class="kpi-value" id="kpi-orders">--</div>
+            <div class="kpi-change flat" id="kpi-orders-change">加载中...</div>
+        </div>
+        <div class="kpi-card premium">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="kpi-label">累计保费</div>
+            <div class="kpi-value" id="kpi-premium">--</div>
+            <div class="kpi-change flat" id="kpi-premium-change">加载中...</div>
+        </div>
+        <div class="kpi-card avg">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M16 8v8m-4-5v5m-4-2v2M4 4h16M4 20h16"/></svg>
+            </div>
+            <div class="kpi-label">平均客单价</div>
+            <div class="kpi-value" id="kpi-avg">--</div>
+            <div class="kpi-change flat" id="kpi-avg-change">加载中...</div>
+        </div>
+        <div class="kpi-card refund">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            </div>
+            <div class="kpi-label">退保率</div>
+            <div class="kpi-value" id="kpi-refund">--</div>
+            <div class="kpi-change flat">退款/撤保占比</div>
+        </div>
+    </div>
+
+    <!-- ====== Row 1: Daily Trend (full width) ====== -->
+    <div class="chart-row full">
+        <div class="chart-card full-height">
+            <div class="chart-header">
+                <div class="chart-icon" style="background:rgba(59,130,246,0.15)">
+                    <svg viewBox="0 0 24 24" style="stroke:var(--accent-blue-light)"><path d="M7 12l3-3 3 3 4-4M3 5v14M3 19h18"/></svg>
+                </div>
+                <h3>每日投保趋势</h3>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ====== Row 2: Status + Product ====== -->
+    <div class="chart-row">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-icon" style="background:rgba(245,158,11,0.15)">
+                    <svg viewBox="0 0 24 24" style="stroke:var(--accent-orange-light)"><path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+                </div>
+                <h3>保单状态分布</h3>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-icon" style="background:rgba(16,185,129,0.15)">
+                    <svg viewBox="0 0 24 24" style="stroke:var(--accent-green-light)"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                </div>
+                <h3>热门产品 TOP10</h3>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-product"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ====== Row 3: Company + Applicant Type ====== -->
+    <div class="chart-row">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-icon" style="background:rgba(139,92,246,0.15)">
+                    <svg viewBox="0 0 24 24" style="stroke:var(--accent-purple-light)"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5"/></svg>
+                </div>
+                <h3>保险公司 TOP10</h3>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-company"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-icon" style="background:rgba(6,182,212,0.15)">
+                    <svg viewBox="0 0 24 24" style="stroke:var(--accent-cyan)"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                <h3>投保人类型（团体/个人）</h3>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-applicant"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ====== Comparison Table ====== -->
+    <div class="table-card">
+        <div class="table-header">
+            <div class="table-icon">
+                <svg viewBox="0 0 24 24"><path d="M3 10h18M3 6h18M3 14h18M3 18h18"/></svg>
+            </div>
+            <h3>三时段核心指标对比</h3>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>指标</th>
+                    <th>昨日</th>
+                    <th>本周</th>
+                    <th>本月</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>保单总数</td>
+                    <td id="cmp-orders-yesterday">--</td>
+                    <td id="cmp-orders-week">--</td>
+                    <td id="cmp-orders-month">--</td>
+                </tr>
+                <tr>
+                    <td>累计保费</td>
+                    <td id="cmp-premium-yesterday">--</td>
+                    <td id="cmp-premium-week">--</td>
+                    <td id="cmp-premium-month">--</td>
+                </tr>
+                <tr>
+                    <td>日均保单</td>
+                    <td id="cmp-daily-yesterday">--</td>
+                    <td id="cmp-daily-week">--</td>
+                    <td id="cmp-daily-month">--</td>
+                </tr>
+                <tr>
+                    <td>平均客单价</td>
+                    <td id="cmp-avg-yesterday">--</td>
+                    <td id="cmp-avg-week">--</td>
+                    <td id="cmp-avg-month">--</td>
+                </tr>
+                <tr>
+                    <td>最高单笔保费</td>
+                    <td id="cmp-max-yesterday">--</td>
+                    <td id="cmp-max-week">--</td>
+                    <td id="cmp-max-month">--</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ====== Insights ====== -->
+    <div class="table-card">
+        <div class="table-header">
+            <div class="table-icon" style="background:rgba(245,158,11,0.15)">
+                <svg viewBox="0 0 24 24" style="stroke:var(--accent-orange-light)"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <h3>分析洞察</h3>
+        </div>
+        <div id="insights-container"></div>
+    </div>
+
+    <!-- ====== Footer ====== -->
+    <div class="footer">
+        投保数据看板 · 数据来源 ydb-admin.sportcares.cn · 生成于 2026-07-22 10:36:46
+    </div>
+</div>
+
+<script>
+// ========== DATA ==========
+const DASHBOARD_DATA = {"report_date": "2026-07-22", "generated_at": "2026-07-22 10:36:46", "periods": {"yesterday": {"label": "昨日", "has_orders": true, "total_orders": 74, "total_premium": 827.0999999999999, "avg_premium": 11.177027027027027, "max_premium": 114.0, "date_days": 1, "daily_trend": [{"date": "2026-07-21", "count": 74, "premium": 827.1}], "status_distribution": {"生效中": 51, "待生效": 18, "已结束": 4, "已撤保": 1}, "product_distribution": {"足球(太保)": 25, "气排球(平安)": 9, "足球(平安)": 5, "游学(平安)": 4, "田径(平安)": 3, "滑冰(平安)": 3, "其他运动(平安)": 3, "小球运动（太保）": 3, "骑游保（平安）": 2, "游泳(平安)": 2}, "company_distribution": {"平安财险": 44, "中国太平洋财产保险股份有限公司深圳分公司": 30}, "applicant_type": {"个人": 45, "团体": 29}}, "week": {"label": "本周", "has_orders": true, "total_orders": 147, "total_premium": 2578.8999999999996, "avg_premium": 17.543537414965982, "max_premium": 460.8, "date_days": 2, "daily_trend": [{"date": "2026-07-20", "count": 73, "premium": 1751.8}, {"date": "2026-07-21", "count": 74, "premium": 827.1}], "status_distribution": {"生效中": 56, "待生效": 35, "已撤保": 28, "已结束": 28}, "product_distribution": {"龙舟(太保)": 26, "足球(太保)": 25, "足球(平安)": 12, "气排球(平安)": 10, "武术套路(平安)": 9, "骑游保（平安）": 6, "其他运动(平安)": 6, "滑冰(平安)": 5, "水上休闲（平安）": 5, "游学(平安)": 4}, "company_distribution": {"平安财险": 88, "中国太平洋财产保险股份有限公司深圳分公司": 59}, "applicant_type": {"个人": 113, "团体": 34}}, "month": {"label": "本月", "has_orders": true, "total_orders": 1780, "total_premium": 43247.9, "avg_premium": 24.296573033707865, "max_premium": 5625.0, "date_days": 21, "daily_trend": [{"date": "2026-07-01", "count": 51, "premium": 920.4}, {"date": "2026-07-02", "count": 76, "premium": 1078.0}, {"date": "2026-07-03", "count": 124, "premium": 2406.2999999999997}, {"date": "2026-07-04", "count": 95, "premium": 2076.8}, {"date": "2026-07-05", "count": 60, "premium": 1227.4}, {"date": "2026-07-06", "count": 59, "premium": 1367.5}, {"date": "2026-07-07", "count": 123, "premium": 1400.7}, {"date": "2026-07-08", "count": 160, "premium": 3020.7}, {"date": "2026-07-09", "count": 92, "premium": 1986.1}, {"date": "2026-07-10", "count": 86, "premium": 1765.2}, {"date": "2026-07-11", "count": 91, "premium": 3572.2}, {"date": "2026-07-12", "count": 25, "premium": 481.3}, {"date": "2026-07-13", "count": 57, "premium": 2455.7}, {"date": "2026-07-14", "count": 82, "premium": 3103.5}, {"date": "2026-07-15", "count": 100, "premium": 3675.5}, {"date": "2026-07-16", "count": 62, "premium": 6663.9}, {"date": "2026-07-17", "count": 106, "premium": 1085.7}, {"date": "2026-07-18", "count": 122, "premium": 1149.7}, {"date": "2026-07-19", "count": 62, "premium": 1232.4}, {"date": "2026-07-20", "count": 73, "premium": 1751.8}, {"date": "2026-07-21", "count": 74, "premium": 827.1}], "status_distribution": {"已结束": 1376, "生效中": 169, "已撤保": 119, "待生效": 116}, "product_distribution": {"舞蹈(平安)": 118, "篮球(平安)": 103, "其他运动(平安)": 101, "足球(平安)": 100, "跑步(平安)": 95, "足球(太保)": 81, "小球运动（太保）": 79, "骑行(太保)": 50, "滑冰(平安)": 48, "舞蹈健身（太保）": 47}, "company_distribution": {"平安财险": 1352, "中国太平洋财产保险股份有限公司深圳分公司": 428}, "applicant_type": {"个人": 1561, "团体": 219}}}, "compare_periods": {"prev_day": {"label": "前日", "has_orders": true, "total_orders": 73, "total_premium": 1751.8, "avg_premium": 23.997260273972604, "max_premium": 460.8, "date_days": 1}, "last_week": {"label": "上周", "has_orders": true, "total_orders": 591, "total_premium": 19366.4, "avg_premium": 32.7688663282572, "max_premium": 5625.0, "date_days": 7}, "last_month": {"label": "上月", "has_orders": true, "total_orders": 2754, "total_premium": 64443.100000000006, "avg_premium": 23.39981844589688, "max_premium": 2880.0, "date_days": 30}}, "insights": ["本期共获取投保保单 74 单，累计保费 ¥827.10", "平均每单保费 ¥11.18", "已投保保单 73 单，占比 98.6%", "撤保/退款保单 1 单，退保率 1.4%", "最热门产品: 足球(太保)（25 单保单）", "投保单量最多的保险公司: 平安财险（44 单保单）", "本期共获取投保保单 147 单，累计保费 ¥2,578.90", "平均每单保费 ¥17.54", "已投保保单 119 单，占比 81.0%", "撤保/退款保单 28 单，退保率 19.0%", "最热门产品: 龙舟(太保)（26 单保单）", "投保单量最多的保险公司: 平安财险（88 单保单）", "日均投保 73.5 单", "投保高峰日: 2026-07-21（74 单）", "投保低谷日: 2026-07-20（73 单）", "本期共获取投保保单 1780 单，累计保费 ¥43,247.90", "平均每单保费 ¥24.30", "已投保保单 1661 单，占比 93.3%", "撤保/退款保单 119 单，退保率 6.7%", "最热门产品: 舞蹈(平安)（118 单保单）", "投保单量最多的保险公司: 平安财险（1352 单保单）", "日均投保 84.8 单", "投保高峰日: 2026-07-08（160 单）", "投保低谷日: 2026-07-12（25 单）", "趋势: 近期投保量呈下降趋势 ↓"]};
+
+// ========== FORMAT HELPERS ==========
+function fmtMoney(v) {
+    if (v == null || v === 0) return '¥0';
+    return '¥' + Number(v).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtInt(v) { return Number(v || 0).toLocaleString('zh-CN'); }
+function fmtPct(v, total) { if (!total) return '0%'; return (v/total*100).toFixed(1)+'%'; }
+
+// ========== PERIOD STATE ==========
+let currentPeriod = 'yesterday';
+const PERIOD_META = { yesterday: '昨日', week: '本周', month: '本月' };
+const COMPARE_PERIOD_META = { prev_day: '前日', last_week: '上周', last_month: '上月' };
+const PERIOD_COMPARE_KEY = { yesterday: 'prev_day', week: 'last_week', month: 'last_month' };
+const PERIOD_INFO = DASHBOARD_DATA.periods;
+const COMPARE_INFO = DASHBOARD_DATA.compare_periods;
+
+// ========== CHART INSTANCES ==========
+const charts = {};
+
+function destroyChart(key) {
+    if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+}
+
+// Chart.js defaults
+Chart.defaults.color = '#4b5563';
+Chart.defaults.borderColor = 'rgba(200, 210, 225, 0.4)';
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif';
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(255,255,255,0.97)';
+Chart.defaults.plugins.tooltip.borderColor = 'rgba(59,130,246,0.25)';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.titleColor = '#1a1f2e';
+Chart.defaults.plugins.tooltip.bodyColor = '#4b5563';
+Chart.defaults.plugins.tooltip.padding = 12;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+Chart.defaults.plugins.tooltip.titleFont = { weight: 'bold', size: 13 };
+Chart.defaults.plugins.tooltip.boxPadding = 6;
+
+// ========== COLOR PALETTE ==========
+const PALETTE = [
+    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
+    '#ec4899', '#ef4444', '#fbbf24', '#a78bfa', '#34d399',
+];
+const STATUS_COLORS = {
+    '生效中': '#10b981', '待生效': '#3b82f6', '已结束': '#f59e0b',
+    '已撤保': '#ef4444', '已付款': '#10b981', '待付款': '#f59e0b',
+    '已退款': '#ec4899', '已取消': '#6b7280',
+};
+const APPLICANT_COLORS = {
+    '团体': '#3b82f6', '个人': '#10b981',
+};
+
+function getColor(i) { return PALETTE[i % PALETTE.length]; }
+function getStatusColor(label) {
+    for (const [key, color] of Object.entries(STATUS_COLORS)) {
+        if (label.includes(key)) return color;
+    }
+    return getColor(Object.keys(STATUS_COLORS).length);
+}
+
+// ========== GRADIENT HELPER ==========
+function makeGradient(ctx, color, alpha) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, color + alpha);
+    gradient.addColorStop(1, color + '00');
+    return gradient;
+}
+
+function makeBarGradient(ctx, color) {
+    const gradient = ctx.createLinearGradient(0, 0, 300, 0);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, color + '88');
+    return gradient;
+}
+
+// ========== CHART FUNCTIONS ==========
+
+function renderTrendChart(data) {
+    destroyChart('trend');
+    const trend = data.daily_trend || [];
+    const canvas = document.getElementById('chart-trend');
+    const ctx = canvas.getContext('2d');
+
+    if (!trend.length) {
+        charts.trend = new Chart(ctx, { type:'line', data:{labels:[],datasets:[]},
+            options:{plugins:{title:{display:true,text:'暂无趋势数据',color:'#5a6b85'}}}});
+        return;
+    }
+    const labels = trend.map(d => d.date ? String(d.date).slice(5) : '');
+    const counts = trend.map(d => d.count || 0);
+    const premiums = trend.map(d => d.premium || 0);
+    const step = Math.max(1, Math.floor(labels.length / 12));
+
+    charts.trend = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '保单数',
+                    data: counts,
+                    borderColor: '#3b82f6',
+                    backgroundColor: makeGradient(ctx, '#3b82f6', '33'),
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#3b82f6',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    borderWidth: 2.5,
+                    yAxisID: 'y',
+                },
+                {
+                    label: '保费 (元)',
+                    data: premiums,
+                    borderColor: '#f59e0b',
+                    backgroundColor: makeGradient(ctx, '#f59e0b', '22'),
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#f59e0b',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    borderWidth: 2.5,
+                    yAxisID: 'y1',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode:'index', intersect:false },
+            animation: { duration: 600, easing: 'easeOutQuart' },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(200,210,225,0.3)', drawBorder: false },
+                    ticks: {
+                        maxTicksLimit: 15,
+                        color: '#9ca3af',
+                        callback: function(val, idx) { return idx % step === 0 ? this.getLabelForValue(val) : ''; }
+                    }
+                },
+                y: {
+                    type: 'linear', position: 'left',
+                    title: { display:true, text:'保单数', color:'#2563eb', font:{weight:'600'} },
+                    grid: { color: 'rgba(200,210,225,0.2)', drawBorder: false },
+                    ticks: { color: '#2563eb', precision: 0 },
+                    beginAtZero: true,
+                },
+                y1: {
+                    type: 'linear', position: 'right',
+                    title: { display:true, text:'保费 (元)', color:'#d97706', font:{weight:'600'} },
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#d97706', callback: v => '¥'+v.toLocaleString() },
+                    beginAtZero: true,
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top', align: 'end',
+                    labels: { usePointStyle:true, pointStyle:'circle', padding:20, font:{size:13,weight:'500'} }
+                }
+            }
+        }
+    });
+}
+
+function renderStatusChart(data) {
+    destroyChart('status');
+    const dist = data.status_distribution || {};
+    const labels = Object.keys(dist);
+    const values = Object.values(dist);
+    if (!labels.length) { return; }
+    const colors = labels.map((l, i) => getStatusColor(l) || getColor(i));
+    const ctx = document.getElementById('chart-status').getContext('2d');
+    const total = values.reduce((a,b)=>a+b,0);
+
+    charts.status = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderColor: 'rgba(245,247,250,0.9)',
+                borderWidth: 3,
+                hoverBorderColor: '#fff',
+                hoverBorderWidth: 2,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            cutout: '62%',
+            animation: { animateRotate: true, duration: 700 },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 16, usePointStyle: true, pointStyle: 'circle',
+                        font: { size: 12, weight: '500' },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            return data.labels.map((l, i) => ({
+                                text: `${l}  ${fmtPct(data.datasets[0].data[i], total)} (${data.datasets[0].data[i]})`,
+                                fillStyle: data.datasets[0].backgroundColor[i],
+                                strokeStyle: data.datasets[0].backgroundColor[i],
+                                index: i
+                            }));
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const val = ctx.parsed;
+                            return ` ${ctx.label}: ${val} 单 (${fmtPct(val, total)})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderBarChart(canvasId, dist, chartKey, horizontal) {
+    destroyChart(chartKey);
+    const labels = Object.keys(dist || {});
+    const values = Object.values(dist || {});
+    if (!labels.length) { return; }
+
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const colors = labels.map((l, i) => {
+        if (chartKey === 'product') return makeBarGradient(ctx, getColor(i));
+        if (chartKey === 'company') return makeBarGradient(ctx, getColor(i));
+        return getColor(i);
+    });
+
+    charts[chartKey] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderRadius: 6,
+                borderSkipped: false,
+                barThickness: horizontal ? 'flex' : undefined,
+                maxBarThickness: horizontal ? 24 : 40,
+            }]
+        },
+        options: {
+            indexAxis: horizontal ? 'y' : 'x',
+            responsive: true, maintainAspectRatio: false,
+            animation: { duration: 600, easing: 'easeOutQuart' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const val = ctx.parsed[horizontal ? 'x' : 'y'];
+                            return ` ${val.toLocaleString()} 单`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(200,210,225,0.2)', drawBorder: false },
+                    ticks: horizontal ? { color:'#6b7280', callback:v=>v.toLocaleString() } : { color:'#6b7280', maxRotation: 45, minRotation: 0 },
+                    beginAtZero: true,
+                },
+                y: {
+                    grid: { color: 'rgba(200,210,225,0.2)', drawBorder: false },
+                    ticks: !horizontal ? { color:'#6b7280', callback:v=>v.toLocaleString() } : { color:'#6b7280', autoSkip: false },
+                    beginAtZero: true,
+                }
+            }
+        }
+    });
+}
+
+// ========== APPLICANT TYPE CHART ==========
+
+function renderApplicantChart(dist) {
+    destroyChart('applicant');
+    const labels = Object.keys(dist || {});
+    const values = Object.values(dist || {});
+    if (!labels.length) { return; }
+
+    // 团体/个人用专属配色，其余用 palette
+    const colors = labels.map(l => APPLICANT_COLORS[l] || getColor(labels.indexOf(l)));
+    const ctx = document.getElementById('chart-applicant').getContext('2d');
+    const total = values.reduce((a,b)=>a+b,0);
+
+    charts.applicant = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderColor: 'rgba(245,247,250,0.9)',
+                borderWidth: 3,
+                hoverBorderColor: '#fff',
+                hoverBorderWidth: 2,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            cutout: '62%',
+            animation: { animateRotate: true, duration: 700 },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 16, usePointStyle: true, pointStyle: 'circle',
+                        font: { size: 12, weight: '500' },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            return data.labels.map((l, i) => ({
+                                text: `${l}  ${fmtPct(data.datasets[0].data[i], total)} (${data.datasets[0].data[i]})`,
+                                fillStyle: data.datasets[0].backgroundColor[i],
+                                strokeStyle: data.datasets[0].backgroundColor[i],
+                                index: i
+                            }));
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const val = ctx.parsed;
+                            return ` ${ctx.label}: ${val} 单 (${fmtPct(val, total)})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ========== UPDATE UI ==========
+
+function updateKPIs(data, periodKey) {
+    const meta = PERIOD_INFO[periodKey] || {};
+    // 环比对比: 昨日→前日, 本周→上周, 本月→上月
+    const compareKey = PERIOD_COMPARE_KEY[periodKey];
+    const prevMeta = compareKey ? (COMPARE_INFO[compareKey] || null) : null;
+
+    document.getElementById('kpi-orders').textContent = meta.has_orders ? fmtInt(meta.total_orders) : '--';
+    document.getElementById('kpi-premium').textContent = meta.has_orders ? fmtMoney(meta.total_premium) : '--';
+    document.getElementById('kpi-avg').textContent = (meta.has_orders && meta.avg_premium) ? fmtMoney(meta.avg_premium) : '--';
+
+    // Refund rate
+    const statusDist = data.status_distribution || {};
+    const refundKeys = Object.keys(statusDist).filter(k => k.includes('退款') || k.includes('撤保'));
+    const totalOrders = meta.total_orders || 1;
+    const refundCount = refundKeys.reduce((s,k) => s + (statusDist[k]||0), 0);
+    document.getElementById('kpi-refund').textContent = fmtPct(refundCount, totalOrders);
+
+    // Changes compared to comparison period (前日/上周/上月)
+    function setChange(elId, cur, prev) {
+        const el = document.getElementById(elId);
+        if (!prev || !cur) { el.textContent = ''; el.className = 'kpi-change flat'; return; }
+        const diff = cur - prev;
+        if (Math.abs(diff) < 0.5) {
+            el.innerHTML = '<span class="arrow">—</span> 持平';
+            el.className = 'kpi-change flat';
+            return;
+        }
+        const pct = prev ? Math.abs(diff/prev*100).toFixed(1) : 0;
+        const dir = diff > 0 ? '↑' : '↓';
+        const cls = (diff > 0) ? 'up' : 'down';
+        const label = COMPARE_PERIOD_META[compareKey] || '上一时段';
+        el.innerHTML = `<span class="arrow">${dir}</span> ${pct}% vs ${label}`;
+        el.className = `kpi-change ${cls}`;
+    }
+
+    setChange('kpi-orders-change', meta.total_orders, prevMeta?.total_orders);
+    setChange('kpi-premium-change', meta.total_premium, prevMeta?.total_premium);
+    setChange('kpi-avg-change', meta.avg_premium, prevMeta?.avg_premium);
+}
+
+function updateCharts(data) {
+    renderTrendChart(data);
+    renderStatusChart(data);
+    renderBarChart('chart-product', data.product_distribution, 'product', true);
+    renderBarChart('chart-company', data.company_distribution, 'company', true);
+    // 投保人类型图表：团体/个人用专属颜色，渲染为饼图
+    renderApplicantChart(data.applicant_type);
+}
+
+function switchPeriod(periodKey) {
+    currentPeriod = periodKey;
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === periodKey);
+    });
+
+    const data = DASHBOARD_DATA.periods[periodKey] || {};
+    updateKPIs(data, periodKey);
+    updateCharts(data);
+}
+
+function fillComparisonTable() {
+    const keys = ['yesterday','week','month'];
+
+    keys.forEach(k => {
+        const p = PERIOD_INFO[k] || {};
+        const days = p.date_days || (k === 'yesterday' ? 1 : (k === 'week' ? 7 : 30));
+        const dailyVal = (p.total_orders||0)/days > 0 ? ((p.total_orders||0)/days).toFixed(1) : '--';
+
+        document.getElementById('cmp-orders-'+k).textContent = p.has_orders ? fmtInt(p.total_orders) : '--';
+        document.getElementById('cmp-premium-'+k).textContent = p.has_orders ? fmtMoney(p.total_premium) : '--';
+        document.getElementById('cmp-daily-'+k).textContent = p.has_orders ? dailyVal : '--';
+        document.getElementById('cmp-avg-'+k).textContent = (p.has_orders && p.avg_premium) ? fmtMoney(p.avg_premium) : '--';
+        document.getElementById('cmp-max-'+k).textContent = (p.has_orders && p.max_premium) ? fmtMoney(p.max_premium) : '--';
+    });
+}
+
+function fillInsights() {
+    const container = document.getElementById('insights-container');
+    const allInsights = DASHBOARD_DATA.insights || [];
+    if (!allInsights.length) {
+        container.innerHTML = '<p style="color:var(--text-secondary);padding:8px 0">暂无洞察数据</p>';
+        return;
+    }
+    container.innerHTML = allInsights.map((ins, i) =>
+        `<div class="insight-item">
+            <span class="insight-num">${String(i+1).padStart(2,'0')}</span>
+            ${ins}
+        </div>`
+    ).join('');
+}
+
+// ========== INIT ==========
+document.addEventListener('DOMContentLoaded', function() {
+    fillComparisonTable();
+    fillInsights();
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            switchPeriod(this.dataset.period);
+        });
+    });
+
+    switchPeriod('yesterday');
+});
+</script>
+</body>
+</html>
